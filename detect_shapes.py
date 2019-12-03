@@ -1,0 +1,93 @@
+"""Библиотеки"""
+
+from google.colab import drive
+drive.mount('/content/drive')
+
+import cv2
+import imutils
+import numpy as np
+from matplotlib import pyplot as plt
+
+"""Функции"""
+
+def detectShape(c):
+    shape_id = -1
+    shape_name = "unknown"
+    peri = cv2.arcLength(c, True)
+    approx = cv2.approxPolyDP(c, 0.04 * peri, True)
+    if len(approx) == 3:
+        shape_name = "triangle"
+        shape_id = 2
+    elif len(approx) == 4:
+        shape_name = "square"
+        shape_id = 0
+    elif len(approx) > 4:
+        shape_name = "circle"
+        shape_id = 1
+    return shape_name, shape_id
+
+
+def drawImage(inImg, w, h):
+    fig, ax = plt.subplots()
+    ax.imshow(inImg)
+    fig.set_figwidth(w)
+    fig.set_figheight(h)
+    plt.show()
+
+"""Отсечка"""
+
+t1 = cv2.getTickCount()
+
+"""Считывание изображения"""
+
+start_img = cv2.imread('/content/drive/My Drive/nti/img/n3.png')
+
+"""Фильтрация"""
+
+blured_img = cv2.GaussianBlur(start_img.copy(), (3, 3), cv2.BORDER_DEFAULT)
+
+blured_img = cv2.bilateralFilter(blured_img, 20, 160, 50)
+cv2.imwrite("/content/drive/My Drive/nti/output_img/blured_img.png", blured_img)
+
+gray_img = cv2.cvtColor(blured_img, cv2.COLOR_BGR2GRAY)
+thresh_img = cv2.threshold(gray_img, 100, 255, cv2.THRESH_BINARY)[1]
+cv2.imwrite("/content/drive/My Drive/nti/output_img/thresh_img.png", thresh_img)
+
+"""Поиск контуров"""
+
+cnts = cv2.findContours(thresh_img.copy(), cv2.RETR_EXTERNAL,
+                        cv2.CHAIN_APPROX_SIMPLE)
+cnts = imutils.grab_contours(cnts)
+
+"""Распознавание контуров"""
+
+trigs = 0
+circles = 0
+squares = 0
+for c in cnts:
+    try:
+        M = cv2.moments(c)
+        cX = int((M["m10"] / M["m00"]))
+        cY = int((M["m01"] / M["m00"]))
+        shape_name, shape_id = detectShape(c)
+        if shape_id == 2:
+            trigs += 1
+        elif shape_id == 0:
+            squares += 1
+        elif shape_id == 1:
+            circles += 1
+        c = c.astype("int")
+        cv2.drawContours(start_img, [c], -1, (0, 255, 0), 1)
+        cv2.putText(start_img, shape_name, (cX, cY),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 0, 0), 1)
+    except ZeroDivisionError:
+        continue
+
+"""Вывод"""
+
+cv2.imwrite("output.png", start_img)
+t2 = cv2.getTickCount()
+all_t = (t2 - t1) / cv2.getTickFrequency()
+print(f'Trigs: {trigs}\nSquares: {squares}\nCircles: {circles}')
+print(f'Sum: {trigs + squares + circles}')
+print('Time: ', all_t)
