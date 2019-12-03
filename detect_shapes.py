@@ -26,13 +26,21 @@ def detectShape(c):
         shape_id = 1
     return shape_name, shape_id
 
-
 def drawImage(inImg, w, h):
     fig, ax = plt.subplots()
     ax.imshow(inImg)
     fig.set_figwidth(w)
     fig.set_figheight(h)
     plt.show()
+
+def drawGrid(img, step_x, step_y, bold):
+  to_grid = img.copy()
+  img_h, img_w = to_grid.shape[0], to_grid.shape[1]
+  for x in range(0, img_w, step_x):
+    cv2.line(to_grid, (x, 0), (x, img_h), (255,255,255), bold)
+  for y in range(0, img_h, step_y):
+    cv2.line(to_grid, (0, y), (img_w, y), (255,255,255), bold)
+  return to_grid
 
 """Отсечка"""
 
@@ -64,6 +72,7 @@ cnts = imutils.grab_contours(cnts)
 trigs = 0
 circles = 0
 squares = 0
+shapes_array = [];
 for c in cnts:
     try:
         M = cv2.moments(c)
@@ -80,14 +89,25 @@ for c in cnts:
         cv2.drawContours(start_img, [c], -1, (0, 255, 0), 1)
         cv2.putText(start_img, shape_name, (cX, cY),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 0, 0), 1)
+        x = cX // 200
+        y = cY // 200
+        shapes_array.append(f'({shape_id}, {x}, {y})')
     except ZeroDivisionError:
         continue
 
 """Вывод"""
 
-cv2.imwrite("output.png", start_img)
 t2 = cv2.getTickCount()
 all_t = (t2 - t1) / cv2.getTickFrequency()
+start_img = drawGrid(start_img, 200, 200, 10)
+drawImage(start_img, 7, 7)
+
 print(f'Trigs: {trigs}\nSquares: {squares}\nCircles: {circles}')
 print(f'Sum: {trigs + squares + circles}')
 print('Time: ', all_t)
+
+cv2.imwrite("/content/drive/My Drive/nti/output_img/output.png", start_img)
+
+f = open('/content/drive/My Drive/nti/output_img/out.txt', 'w')
+f.write('[' + ', '.join(shapes_array) + ']')
+f.close()
